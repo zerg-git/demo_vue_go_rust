@@ -1,0 +1,45 @@
+# 使用官方Rust镜像作为构建环境
+FROM rust:1.75-alpine AS builder
+
+# 设置工作目录
+WORKDIR /app
+
+# 安装必要的系统依赖
+RUN apk add --no-cache musl-dev openssl-dev pkgconfig
+
+# 复制Cargo文件
+COPY tools/Cargo.toml tools/Cargo.lock ./
+
+# 创建src目录并添加虚拟main.rs以缓存依赖
+RUN mkdir src && echo "fn main() {}" > src/main.rs
+
+# 构建依赖（缓存层）
+RUN cargo build --release
+RUN rm src/main.rs
+
+# 复制实际源代码
+COPY tools/src ./src
+
+# 构建应用
+RUN cargo build --release
+
+# 使用轻量级镜像作为运行环境
+FROM alpine:latest
+
+# 安装运行时依赖
+RUN apk --no-cache add ca-certificates libgcc
+
+# 设置工作目录
+WORKDIR /root/
+
+# 从构建阶段复制二进制文件
+COPY --from=builder /app/target/release/demo-tools .
+
+# 创建数据目录
+RUN mkdir -p /data
+
+# 设置环境变量
+ENV RUST_LOG=info
+
+# 默认命令显示帮助信息
+CMD ["./demo-tools", "--help"]
