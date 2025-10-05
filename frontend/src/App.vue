@@ -1,78 +1,30 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import axios from 'axios'
-import UserList from './components/UserList.vue'
-import UserForm from './components/UserForm.vue'
+import { ref } from 'vue'
 
-// API基础URL
-const API_BASE_URL = 'http://localhost:8080/api'
+/**
+ * 检查后端服务状态
+ */
+const checkBackendStatus = async () => {
+  try {
+    const response = await fetch('http://localhost:8080/api/health')
+    return response.ok
+  } catch (error) {
+    return false
+  }
+}
 
 // 响应式数据
-const users = ref([])
-const loading = ref(false)
-const error = ref('')
-const showForm = ref(false)
+const backendStatus = ref(null)
 
 /**
- * 获取用户列表
- * 从后端API获取所有用户数据
+ * 检查服务状态
  */
-const fetchUserList = async () => {
-  loading.value = true
-  error.value = ''
-  
-  try {
-    const response = await axios.get(`${API_BASE_URL}/users`)
-    if (response.data.code === 200) {
-      users.value = response.data.data
-    } else {
-      error.value = response.data.message || '获取用户列表失败'
-    }
-  } catch (err) {
-    error.value = '网络请求失败，请检查后端服务是否启动'
-    console.error('获取用户列表失败:', err)
-  } finally {
-    loading.value = false
-  }
+const checkServiceStatus = async () => {
+  backendStatus.value = await checkBackendStatus()
 }
 
-/**
- * 创建新用户
- * @param {Object} userData - 用户数据
- */
-const createUser = async (userData) => {
-  loading.value = true
-  error.value = ''
-  
-  try {
-    const response = await axios.post(`${API_BASE_URL}/users`, userData)
-    if (response.data.code === 201) {
-      // 创建成功，刷新用户列表
-      await fetchUserList()
-      showForm.value = false
-    } else {
-      error.value = response.data.message || '创建用户失败'
-    }
-  } catch (err) {
-    error.value = '创建用户失败，请检查输入数据'
-    console.error('创建用户失败:', err)
-  } finally {
-    loading.value = false
-  }
-}
-
-/**
- * 显示/隐藏用户表单
- */
-const toggleUserForm = () => {
-  showForm.value = !showForm.value
-  error.value = ''
-}
-
-// 组件挂载时获取用户列表
-onMounted(() => {
-  fetchUserList()
-})
+// 页面加载时检查服务状态
+checkServiceStatus()
 </script>
 
 <template>
@@ -91,46 +43,58 @@ onMounted(() => {
       </div>
     </header>
 
-    <!-- 主要内容 -->
-    <main class="app-main">
-      <div class="container">
-        <!-- 操作栏 -->
-        <div class="action-bar">
-          <button 
-            @click="toggleUserForm" 
-            class="btn btn-primary"
-            :disabled="loading"
+    <!-- 导航菜单 -->
+    <nav class="app-navigation">
+      <div class="nav-container">
+        <div class="nav-menu">
+          <router-link 
+            to="/" 
+            class="nav-item"
           >
-            {{ showForm ? '取消' : '添加用户' }}
+            🏠 首页
+          </router-link>
+          
+          <router-link 
+            to="/users" 
+            class="nav-item"
+          >
+            👥 用户管理
+          </router-link>
+          
+          <!-- 预留其他功能模块 -->
+          <button class="nav-item disabled" disabled>
+            📊 数据分析
           </button>
           
-          <button 
-            @click="fetchUserList" 
-            class="btn btn-secondary"
-            :disabled="loading"
-          >
-            {{ loading ? '刷新中...' : '刷新列表' }}
+          <button class="nav-item disabled" disabled>
+            ⚙️ 系统设置
           </button>
         </div>
-
-        <!-- 错误提示 -->
-        <div v-if="error" class="error-message">
-          ❌ {{ error }}
+        
+        <!-- 服务状态指示器 -->
+        <div class="status-indicator">
+          <div class="status-item">
+            <span class="status-label">后端服务:</span>
+            <span 
+              :class="['status-dot', backendStatus === true ? 'online' : backendStatus === false ? 'offline' : 'checking']"
+            ></span>
+            <span class="status-text">
+              {{ backendStatus === true ? '在线' : backendStatus === false ? '离线' : '检查中...' }}
+            </span>
+          </div>
+          
+          <button @click="checkServiceStatus" class="refresh-btn">
+            🔄 刷新状态
+          </button>
         </div>
+      </div>
+    </nav>
 
-        <!-- 用户表单 -->
-        <UserForm 
-          v-if="showForm" 
-          @submit="createUser"
-          @cancel="toggleUserForm"
-          :loading="loading"
-        />
-
-        <!-- 用户列表 -->
-        <UserList 
-          :users="users" 
-          :loading="loading"
-        />
+    <!-- 主要内容区域 -->
+    <main class="app-main">
+      <div class="container">
+        <!-- 路由视图 -->
+        <router-view />
       </div>
     </main>
 
@@ -148,6 +112,7 @@ onMounted(() => {
 /* 全局样式 */
 #app {
   min-height: 100vh;
+  width: 100vw;
   display: flex;
   flex-direction: column;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -194,6 +159,126 @@ onMounted(() => {
 .badge.go { background: #00ADD8; }
 .badge.rust { background: #CE422B; }
 
+/* 导航菜单样式 */
+.app-navigation {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  padding: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.nav-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.nav-menu {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.nav-item {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.95rem;
+  backdrop-filter: blur(10px);
+  text-decoration: none;
+  display: inline-block;
+}
+
+.nav-item:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.nav-item.router-link-active {
+  background: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
+}
+
+.nav-item.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 服务状态指示器样式 */
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  color: white;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-dot.online {
+  background: #28a745;
+  box-shadow: 0 0 8px rgba(40, 167, 69, 0.6);
+}
+
+.status-dot.offline {
+  background: #dc3545;
+  box-shadow: 0 0 8px rgba(220, 53, 69, 0.6);
+}
+
+.status-dot.checking {
+  background: #ffc107;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.status-text {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.refresh-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.85rem;
+}
+
+.refresh-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
 /* 主要内容样式 */
 .app-main {
   flex: 1;
@@ -203,66 +288,6 @@ onMounted(() => {
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-  overflow: hidden;
-}
-
-/* 操作栏样式 */
-.action-bar {
-  padding: 30px;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
-  display: flex;
-  gap: 15px;
-  flex-wrap: wrap;
-}
-
-.btn {
-  padding: 12px 24px;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 0.95rem;
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background: #667eea;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #5a67d8;
-  transform: translateY(-2px);
-}
-
-.btn-secondary {
-  background: #6c757d;
-  color: white;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #5a6268;
-  transform: translateY(-2px);
-}
-
-/* 错误提示样式 */
-.error-message {
-  margin: 20px 30px;
-  padding: 15px;
-  background: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
-  border-radius: 8px;
-  font-weight: 500;
 }
 
 /* 页脚样式 */
@@ -292,13 +317,23 @@ onMounted(() => {
     justify-content: center;
   }
   
-  .action-bar {
-    padding: 20px;
+  .nav-container {
+    flex-direction: column;
+    align-items: stretch;
   }
   
-  .btn {
+  .nav-menu {
+    justify-content: center;
+  }
+  
+  .status-indicator {
+    justify-content: center;
+  }
+  
+  .nav-item {
     flex: 1;
     min-width: 120px;
+    text-align: center;
   }
 }
 </style>

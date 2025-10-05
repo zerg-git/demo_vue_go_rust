@@ -1,9 +1,17 @@
 <script setup>
-import { ref, defineEmits, defineProps } from 'vue'
+import { ref, defineEmits, defineProps, watch, onMounted } from 'vue'
 
 // 定义组件属性
 const props = defineProps({
   loading: {
+    type: Boolean,
+    default: false
+  },
+  user: {
+    type: Object,
+    default: null
+  },
+  isEditing: {
     type: Boolean,
     default: false
   }
@@ -20,6 +28,40 @@ const formData = ref({
 
 // 表单验证错误
 const errors = ref({})
+
+/**
+ * 初始化表单数据
+ */
+const initializeForm = () => {
+  console.log('🔄 初始化表单数据')
+  console.log('📊 props.isEditing:', props.isEditing)
+  console.log('👤 props.user:', props.user)
+  
+  if (props.isEditing && props.user) {
+    formData.value = {
+      name: props.user.name || '',
+      email: props.user.email || ''
+    }
+    console.log('✏️ 编辑模式 - 设置表单数据:', formData.value)
+  } else {
+    formData.value = {
+      name: '',
+      email: ''
+    }
+    console.log('➕ 新增模式 - 清空表单数据')
+  }
+  errors.value = {}
+}
+
+// 监听编辑状态变化
+watch(() => [props.isEditing, props.user], () => {
+  initializeForm()
+}, { immediate: true })
+
+// 组件挂载时初始化
+onMounted(() => {
+  initializeForm()
+})
 
 /**
  * 验证表单数据
@@ -54,7 +96,12 @@ const validateForm = () => {
  * 提交表单
  */
 const handleSubmit = () => {
+  console.log('🚀 handleSubmit 被调用')
+  console.log('📝 当前表单数据:', formData.value)
+  console.log('🔍 验证状态:', validateForm())
+  
   if (!validateForm()) {
+    console.log('❌ 表单验证失败')
     return
   }
   
@@ -64,7 +111,9 @@ const handleSubmit = () => {
     email: formData.value.email.trim().toLowerCase()
   }
   
+  console.log('✅ 准备提交数据:', userData)
   emit('submit', userData)
+  console.log('📤 已发送submit事件')
 }
 
 /**
@@ -72,11 +121,7 @@ const handleSubmit = () => {
  */
 const handleCancel = () => {
   // 重置表单
-  formData.value = {
-    name: '',
-    email: ''
-  }
-  errors.value = {}
+  initializeForm()
   
   emit('cancel')
 }
@@ -95,8 +140,8 @@ const clearFieldError = (field) => {
 <template>
   <div class="user-form">
     <div class="form-header">
-      <h3>📝 添加新用户</h3>
-      <p>请填写用户的基本信息</p>
+      <h3>{{ isEditing ? '✏️ 编辑用户' : '📝 添加新用户' }}</h3>
+      <p>{{ isEditing ? '修改用户的基本信息' : '请填写用户的基本信息' }}</p>
     </div>
     
     <form @submit.prevent="handleSubmit" class="form-content">
@@ -165,10 +210,10 @@ const clearFieldError = (field) => {
         >
           <span v-if="loading" class="loading-text">
             <span class="loading-dot"></span>
-            创建中...
+            {{ isEditing ? '更新中...' : '创建中...' }}
           </span>
           <span v-else>
-            ✅ 创建用户
+            {{ isEditing ? '✅ 更新用户' : '✅ 创建用户' }}
           </span>
         </button>
       </div>

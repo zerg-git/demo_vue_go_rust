@@ -1,5 +1,5 @@
 <script setup>
-import { defineProps } from 'vue'
+import { defineProps, defineEmits } from 'vue'
 
 // 定义组件属性
 const props = defineProps({
@@ -13,6 +13,9 @@ const props = defineProps({
   }
 })
 
+// 定义组件事件
+const emit = defineEmits(['edit', 'delete'])
+
 /**
  * 格式化日期显示
  * @param {string} dateString - 日期字符串
@@ -22,7 +25,22 @@ const formatDate = (dateString) => {
   if (!dateString) return '-'
   return new Date(dateString).toLocaleDateString('zh-CN')
 }
-</script>
+
+/**
+ * 编辑用户
+ * @param {Object} user - 用户对象
+ */
+const editUser = (user) => {
+  emit('edit', user)
+}
+
+/**
+ * 删除用户
+ * @param {Object} user - 用户对象
+ */
+const deleteUser = (user) => {
+  emit('delete', user.id)
+}</script>
 
 <template>
   <div class="user-list">
@@ -60,11 +78,19 @@ const formatDate = (dateString) => {
         </div>
         
         <div class="user-actions">
-          <button class="action-btn view-btn" title="查看详情">
-            👁️
-          </button>
-          <button class="action-btn edit-btn" title="编辑用户">
+          <button 
+            class="action-btn edit-btn" 
+            title="编辑用户"
+            @click="editUser(user)"
+          >
             ✏️
+          </button>
+          <button 
+            class="action-btn delete-btn" 
+            title="删除用户"
+            @click="deleteUser(user)"
+          >
+            🗑️
           </button>
         </div>
       </div>
@@ -243,6 +269,16 @@ const formatDate = (dateString) => {
 
 .edit-btn:hover {
   background: #ffe0b2;
+  transform: scale(1.1);
+}
+
+.delete-btn {
+  background: #ffebee;
+  color: #d32f2f;
+}
+
+.delete-btn:hover {
+  background: #ffcdd2;
   transform: scale(1.1);
 }
 
